@@ -1,0 +1,97 @@
+Assets/
+│
+├── Player/
+│   ├── RocketShip.prefab
+│   ├── ShipController.cs
+│   ├── ShipData.cs                  ← ScriptableObject definition
+│   ├── ShipData_RocketShip.asset    ← weight, thrust, turnRate, drag
+│   ├── PlayerInput.cs
+│   └── Sprites/
+│       ├── RocketShip.png
+│       └── Thruster_Sheet.png
+│
+├── Weapons/
+│   ├── WeaponBase.cs
+│   ├── WeaponData.cs                ← ScriptableObject definition
+│   ├── WeaponMount.cs               ← Slot on ship
+│   │
+│   ├── Gun/
+│   │   ├── GunWeapon.cs
+│   │   ├── GunWeapon.prefab
+│   │   ├── WeaponData_MachineGun.asset
+│   │   └── WeaponData_Cannon.asset
+│   │
+│   ├── Missile/
+│   │   ├── MissileWeapon.cs
+│   │   ├── MissileWeapon.prefab
+│   │   ├── MissileProjectile.cs
+│   │   ├── MissileProjectile.prefab
+│   │   └── WeaponData_RocketLauncher.asset
+│   │
+│   └── Laser/
+│       ├── LaserWeapon.cs
+│       ├── LaserWeapon.prefab        ← LineRenderer pre-configured
+│       └── WeaponData_LaserCannon.asset
+│
+├── Projectiles/
+│   ├── BulletProjectile.cs
+│   ├── BulletProjectile.prefab
+│   ├── BulletTrail.prefab           ← Trail renderer VFX
+│   └── ProjectilePool.cs
+│
+├── Enemies/
+│   ├── EnemyBase.cs
+│   ├── EnemySpawner.cs
+│   │
+│   ├── Drone/
+│   │   ├── EnemyDrone.prefab
+│   │   ├── EnemyAI_Drone.cs
+│   │   ├── EnemyData_Drone.asset
+│   │   └── Sprite_Drone.png
+│   │
+│   └── Frigate/
+│       ├── EnemyFrigate.prefab
+│       ├── EnemyAI_Frigate.cs
+│       ├── EnemyData_Frigate.asset
+│       └── Sprite_Frigate.png
+│
+├── Combat/
+│   ├── Health.cs
+│   ├── DamageDealer.cs
+│   ├── DamageNumber.prefab          ← TMP world-space popup
+│   ├── DamageNumberSpawner.cs
+│   │
+│   └── Explosion/
+│       ├── ExplosionController.cs
+│       ├── Explosion_Small.prefab
+│       ├── Explosion_Large.prefab
+│       └── Particles/               ← The art lives right next to the prefab
+│           ├── Explosion_Small.asset
+│           └── Explosion_Large.asset
+│
+├── Camera/
+│   ├── CameraRig.prefab             ← Drag into any scene
+│   ├── CameraFollow.cs              ← SmoothDamp, no snapping
+│   └── BulletTimeController.cs      ← timeScale + audio pitch + PP weight
+│
+├── UI/
+│   ├── HUD.prefab
+│   ├── MainMenu.prefab
+│   └── Sprites/
+│
+├── Audio/
+│   ├── SFX/
+│   │   ├── Weapons/
+│   │   ├── Explosions/
+│   │   └── UI/
+│   └── Music/
+│
+├── Core/                            ← Truly shared, game-agnostic systems
+│   ├── ObjectPool.cs                ← Generic pool
+│   ├── GameManager.cs
+│   └── Tags.cs                      ← Const strings / layer helpers
+│
+└── Scenes/
+    ├── MainMenu.unity
+    ├── Level_01.unity
+    └── _Sandbox.unity
