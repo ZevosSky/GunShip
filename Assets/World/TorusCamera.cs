@@ -1,4 +1,8 @@
 
+// Gary 
+// This is contains the logic for the follow camera with additional logic for traversing the world seams
+
+
 using Unity.VisualScripting;
 
 namespace World
@@ -11,7 +15,7 @@ using RocketShip;
 public class TorusCamera : MonoBehaviour
 {
     [Header("World")]
-    [SerializeField] private TorusWorld world;
+    [SerializeField] public TorusWorld world;
 
     [Header("Target")]
     [SerializeField] public Transform target;
