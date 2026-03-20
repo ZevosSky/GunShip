@@ -170,8 +170,8 @@ MonoBehaviour:
     m_Bits: 1
   m_VolumeTrigger: {fileID: 0}
   m_VolumeFrameworkUpdateModeOption: 2
-  m_RenderPostProcessing: 0
-  m_Antialiasing: 0
+  m_RenderPostProcessing: 1
+  m_Antialiasing: 1
   m_AntialiasingQuality: 2
   m_StopNaN: 0
   m_Dithering: 0
@@ -269,11 +269,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6c3ec37195e627d4398a3b5ddc18069c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::World.TorusCamera
-  world: {fileID: 0}
+  world: {fileID: 11400000, guid: 9c141baaf1eab4647be56ac1a1cc8a7f, type: 2}
   target: {fileID: 0}
-  smoothing: 6
-  lookAheadStrength: 2.5
-  lookAheadSmoothing: 3
+  smoothing: 13.5
+  lookAheadStrength: 1.31
+  lookAheadSmoothing: 3.41
   cameraZ: -10
   ship: {fileID: 0}
 --- !u!1 &619394800
@@ -369,6 +369,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1701822428}
+  - component: {fileID: 1701822429}
+  - component: {fileID: 1701822430}
   m_Layer: 0
   m_Name: GameSystems
   m_TagString: Untagged
@@ -391,6 +393,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1701822429
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1701822427}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 011ae38dfeaade34dba4709858034dc9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GameManager.GameManager
+  cameraObject: {fileID: 519420028}
+  smallShipPrefab: {fileID: 2600958460313374514, guid: 008a1dfd30386304eb8fda21c3fd5de6, type: 3}
+  mediumShipPrefab: {fileID: 0}
+  largeShipPrefab: {fileID: 0}
+  startShip: 0
+--- !u!114 &1701822430
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1701822427}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c88820e5e67cd404d998b57c3aeb39b1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GameManager.EnemySpawner
+  target: {fileID: 0}
+  spawnRadiusBand: {x: 0, y: 0}
 --- !u!1 &1731117184
 GameObject:
   m_ObjectHideFlags: 0
