@@ -1,142 +1,159 @@
 ﻿// Gary Yang 
 // 3/12/2026
+// (updated 4/7/2026 — fixed bugs, added SpinDown, kick/spread)
+// (updated 4/14/2026 — spin-down no longer fires; accumulator reset on re-engage)
 
-using System;
 using UnityEngine;
-using UnityEngine.UIElements.Experimental;
 using Utils;
-
+using Projectiles;
 
 namespace Weapons
 {
     public class GunWeapon : WeaponBase
     {
         #region Serialized Fields
-        //===| Serialized Fields |====||
-        [Header("Spin-up/Spin-down Easing For Guns")]
+        [Header("Spin-up/Spin-down Easing")]
         [SerializeField] protected EasingData spinUpEasingType;
         [SerializeField] protected EasingData spinDownEasingType;
         #endregion
-        
-        //===| State data |===========|| 
-        private enum State{Idle, SpinningUp, FullSpin, SpinningDown}
-        private State _firingState = State.Idle;
-        
-        //===| Fire Logic values |====||
-        
-        // This the threshold of time needed to fire which gradually gets shorter
-        // as you spin up and gets larger as you spin down 
-        private float _fireCooldown;         
-        
-        private float _spinUpTimer; // time spent spinning up
-        
-        private float _fireAccumulator; // This is the time elapsed since the last shot 
-        
-        
 
+        //===| State machine |===============================================
+        private enum State { Idle, SpinningUp, FullSpin, SpinningDown }
+        private State _firingState = State.Idle;
+
+        //===| Fire timing |==================================================
+        private float _fireCooldown;        // seconds between shots (shrinks while spinning up)
+        private float _spinUpTimer;         // accumulated spin-up time
+        private float _spinDownTimer;       // accumulated spin-down time
+        private float _fireAccumulator;     // time since last shot
+
+        //===| Spin ratio [0,1]: 0=idle  1=full speed |=======================
+        // Used to scale bullet spread (kick)
+        private float _spinRatio;
+
+        // Full-speed fire interval = 1 / (maxShotsPerSecond * 3)
+        private float FullSpeedCooldown => 1f / Mathf.Max(data.maxShotsPerSecond * 3f, 0.01f);
+        private float IdleCooldown      => 1f / Mathf.Max(data.maxShotsPerSecond,       0.01f);
+
+        //===================================================================
         public override void Tick(float dt)
         {
             if (data == null) return;
 
             switch (_firingState)
             {
+                //===| IDLE |=================================================
                 case State.Idle:
-                    if (triggerHeld) {
-                        _firingState = State.SpinningUp;
+                    if (triggerHeld)
+                    {
+                        _fireCooldown = IdleCooldown;
+                        _firingState  = State.SpinningUp;
                     }
                     break;
-                case State.SpinningUp: // gradually fire faster and faster till full speed
-                    if (!triggerHeld) {
-                        _firingState = State.SpinningDown;
-                        break;
-                    }
-                    // accumulate time and check if we can fire
+
+                //===| SPINNING UP |==========================================
+                case State.SpinningUp:
+                    if (!triggerHeld) { _firingState = State.SpinningDown; break; }
+
+                    _spinUpTimer     += dt;
                     _fireAccumulator += dt;
-                    _spinUpTimer += dt;
-                    // fire if we can
-                    if (_fireAccumulator > _fireCooldown) {
+
+                    float tu = Mathf.Clamp01(_spinUpTimer / data.spinUpTime);
+                    tu = spinUpEasingType != null ? spinUpEasingType.Evaluate(tu) : tu;
+                    _spinRatio    = tu;
+                    _fireCooldown = Mathf.Lerp(IdleCooldown, FullSpeedCooldown, tu);
+
+                    if (_fireAccumulator >= _fireCooldown)
+                    {
                         Fire();
                         _fireAccumulator = 0f;
                     }
-                    // adjust _fireCooldown based on spin up easing function and time spent spinning up
-                    
-                    // Normalize how far into spinup we are (t)
-                    float t = _spinUpTimer / data.spinUpTime; 
-                    t = Mathf.Clamp01(t); 
-                    t = spinUpEasingType.Evaluate(t); // Evaluate what that would be eased
-                    
-                    // un-normalize to calculate _fireCooldown
-                    _fireCooldown = Mathf.Lerp(1f / data.maxShotsPerSecond, 0.01f, t); // from slow fire rate to very fast fire rate (0.01s between shots)
-                    
-                    
-                    // if we reach full spin, transition to full spin state
-                    if (_fireCooldown <= data.maxShotsPerSecond) {
-                        _firingState = State.FullSpin;
-                        break;
-                    }
-                    break;
-                    
-                case State.FullSpin:
-                    if (!triggerHeld) {
-                        _firingState = State.SpinningDown;
-                        break;
-                    }
-                    // accumulate time and check if we can fire
-                    _fireAccumulator += dt;
 
-                    if (_fireAccumulator > _fireCooldown)
+                    if (_spinRatio >= 1f)
                     {
-                        
+                        _spinRatio    = 1f;
+                        _fireCooldown = FullSpeedCooldown;
+                        _firingState  = State.FullSpin;
                     }
                     break;
-                
+
+                //===| FULL SPIN |============================================
+                case State.FullSpin:
+                    if (!triggerHeld) { _firingState = State.SpinningDown; break; }
+
+                    _fireAccumulator += dt;
+                    if (_fireAccumulator >= _fireCooldown)
+                    {
+                        Fire();
+                        _fireAccumulator = 0f;
+                    }
+                    break;
+
+                //===| SPINNING DOWN |========================================
+                case State.SpinningDown:
+                    if (triggerHeld)
+                    {
+                        // Re-engage from current ratio; reset accumulator so no burst on re-engage
+                        _spinUpTimer     = _spinRatio * data.spinUpTime;
+                        _spinDownTimer   = 0f;
+                        _fireAccumulator = 0f;
+                        _firingState     = State.SpinningUp;
+                        break;
+                    }
+
+                    _spinDownTimer += dt;
+                    // No firing during spin-down — spin ratio decays, no bullets
+
+                    float td = Mathf.Clamp01(_spinDownTimer / data.spinUpTime);
+                    td = spinDownEasingType != null ? spinDownEasingType.Evaluate(td) : td;
+                    _spinRatio    = 1f - td;
+                    _fireCooldown = Mathf.Lerp(FullSpeedCooldown, IdleCooldown, td);
+
+
+                    if (_spinRatio <= 0f)
+                    {
+                        _spinRatio = _spinUpTimer = _spinDownTimer = _fireAccumulator = 0f;
+                        _firingState = State.Idle;
+                    }
+                    break;
             }
         }
 
         void Fire()
         {
-            // for now just instantiate the weapon prefab
-            // todo: add a projectile system. 
-            
-            #if UNITY_EDITOR
-            if (data.projectilePrefab == null) {
-                Debug.LogWarning("No projectile prefab assigned to weapon data!");
-            } else { Instantiate(data.projectilePrefab,  muzzle); }
+            if (data.projectilePrefab == null)
+            {
+    #if UNITY_EDITOR
+                Debug.LogWarning($"[GunWeapon] No projectile prefab on {data.name}!");
+    #endif
+                return;
+            }
 
-            if (data.muzzleVFXPrefab == null) {
-                Debug.LogWarning("No muzzle VFX prefab assigned to weapon data!");
-            } else { Instantiate(data.muzzleVFXPrefab, muzzle); }
-            
-            if (data.fireSfx == null) {
-                Debug.LogWarning("No fire SFX assigned to weapon data!");
-            } else { AudioSource.PlayClipAtPoint(data.fireSfx, muzzle.position); }
-            
-            #else // In build, just fire without warnings 
-            
-            if (data.projectilePrefab != null) { Instantiate(data.projectilePrefab,  muzzle); }
-            if (data.muzzleVFXPrefab != null) { Instantiate(data.muzzleVFXPrefab, muzzle); }
-            if (data.fireSfx != null) { AudioSource.PlayClipAtPoint(data.fireSfx, muzzle.position); }
-            
-            #endif
-            
+            // == Kick / spread: scales with spin ratio ==================
+            float spread = data.maxSpreadDegrees * _spinRatio;
+            float angle  = Random.Range(-spread, spread);
+            Quaternion spreadRot = muzzle.rotation * Quaternion.Euler(0f, 0f, angle);
+
+            // == Spawn bullet ==========================================
+            GameObject bullet = Object.Instantiate(
+                data.projectilePrefab, muzzle.position, spreadRot);
+
+            // Set speed
+            if (bullet.TryGetComponent(out BulletProjectile bp))
+                bp.speed = data.projectileSpeed;
+
+            // Set damage / knockback
+            if (bullet.TryGetComponent(out DamageDealer dd))
+                dd.SetDamage(data.damage, data.knockbackForce);
+
+            // == Muzzle VFX ============================================
+            if (data.muzzleVFXPrefab != null)
+                Object.Instantiate(data.muzzleVFXPrefab, muzzle.position, muzzle.rotation);
+
+            // == SFX ===================================================
+            if (data.fireSfx != null)
+                AudioSource.PlayClipAtPoint(data.fireSfx, muzzle.position);
         }
-        
-        
-        #region Unity Functions
-
-        void Start()
-        {
-            // calculate how long it takes to get from 0 to full fire rate in given spin up time in data
-            
-            
-        }
-
-        void Update()
-        {
-            
-        }
-        #endregion
-
 
     }
 }

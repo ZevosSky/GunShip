@@ -3,17 +3,19 @@
 // no textures required.
 //
 // Pipeline
-// ────────
+// ---------------------------------------------------------------------
 //  1. FBM (Fractal Brownian Motion) built from 3 octaves of 2D Perlin
 //     gradient noise gives a continuous height field in [0, 1].
+//     (shamelessly airlifted from reading various shaders online) 
 //  2. A 7-stop colour gradient maps height to biome colours.
 //     _WaterLevel controls the ocean / land ratio.
+//     ( Substance Designer Levels Node essentially ) 
 //  3. Atmosphere rim and dark-side tint identical to PlanetSurface.shader.
 //  4. _CamUVOffset (driven by PlanetBackground.cs) scrolls the UV each
 //     frame so the planet surface tracks the ship's position.
 //
 // Tuning quick-reference
-// ──────────────────────
+// --------------------------------------------------------------------
 //  _Seed        — change to get a completely different planet layout
 //  _NoiseScale  — lower = larger continents, higher = more fragmented
 //  _WaterLevel  — 0.3 = mostly land, 0.5 = Earth-like, 0.7 = ocean world

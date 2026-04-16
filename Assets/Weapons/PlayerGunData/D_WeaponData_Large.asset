@@ -10,21 +10,21 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a844acbd54e9c7d49b132e214a6a1b8e, type: 3}
-  m_Name: D_PlayerWeaponData
+  m_Name: D_WeaponData_Large
   m_EditorClassIdentifier: Assembly-CSharp::Weapons.WeaponData
   Type: 0
-  damage: 10
-  maxShotsPerSecond: 10
+  damage: 18
+  maxShotsPerSecond: 20
   hasSpinUp: 1
-  spinUpTime: 1.5
+  spinUpTime: 1
   hasLaserCharge: 0
   chargeTime: 0.75
-  projectileSpeed: 30
+  projectileSpeed: 40
   projectileLifetime: 3
-  maxSpreadDegrees: 5
+  maxSpreadDegrees: 9
   knockbackForce: 3
-  maxSalvoSize: 5
-  missileSpreadAngle: 30
+  maxSalvoSize: 9
+  missileSpreadAngle: 45
   missileSalvoResetTime: 3
   missileTurnSpeed: 150
   missileJerkForce: 20

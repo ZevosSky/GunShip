@@ -12,4 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 259bb564b38d4e0ea5413ad6814bf8f1, type: 3}
   m_Name: D_PlayerGunSpiUp
   m_EditorClassIdentifier: Assembly-CSharp::Utils.EasingData
-  easingType: 16
+  easingType: 5

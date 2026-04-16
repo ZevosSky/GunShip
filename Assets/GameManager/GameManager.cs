@@ -1,9 +1,7 @@
-// This class should be responsible for....
-// - Swaping between the 3 ships 
-//     - re-wiring the UI & Camera to the new ship 
-//     - cleaning up anything the ship did
+// GameManager.cs
+// Handles ship switching, camera wiring, text effects, and ship respawn.
 
-
+using System.Collections;
 using RocketShip;
 using UnityEngine.InputSystem;
 using World;
@@ -17,44 +15,54 @@ public class GameManager : MonoBehaviour
 {
     [Header("Game Scene References")]
     [SerializeField] private GameObject cameraObject;
-    
+    [SerializeField] private EnemySpawner enemySpawner;
+    [SerializeField] private World.TorusWorld world;   // used to find center spawn point
+
     [Header("Ship Prefabs")]
     [SerializeField] private GameObject smallShipPrefab;
     [SerializeField] private GameObject mediumShipPrefab;
     [SerializeField] private GameObject largeShipPrefab;
-    
+
     private enum StartShip { Small, Medium, Large }
     [SerializeField] private StartShip startShip = StartShip.Small;
-    
-    // Live instances spawned at runtime
+
+    [Header("Respawn")]
+    [SerializeField] private float respawnDelay = 5f;
+
+    // Live instances
     private GameObject _smallShip;
     private GameObject _mediumShip;
     private GameObject _largeShip;
-    
-    // Just stuff the script is going to store ref to for ease of access
+
     private ShipController _currentShipController;
+    private ShipHealth     _currentShipHealth;
     private TorusCamera    _torusCameraComponent;
-    
+    private bool           _respawning;
+
+    private static readonly Vector3 _defaultCenter = new Vector3(100f, 60f, 0f);
+
+    private Vector3 WorldCenter =>
+        world != null ? new Vector3(world.width * 0.5f, world.height * 0.5f, 0f) : _defaultCenter;
+
     void Start()
     {
         _torusCameraComponent = cameraObject.GetComponent<TorusCamera>();
-        
-        // Instantiate whichever prefabs have been assigned
+
         _smallShip  = Spawn(smallShipPrefab);
         _mediumShip = Spawn(mediumShipPrefab);
         _largeShip  = Spawn(largeShipPrefab);
-        
-        // Disable PlayerInput on all ships first so only one is ever active
+
         SetPlayerInputEnabled(_smallShip,  false);
         SetPlayerInputEnabled(_mediumShip, false);
         SetPlayerInputEnabled(_largeShip,  false);
 
         var cO = cameraObject.GetComponent<TorusCamera>();
-        cO.target = _smallShip.transform;
-        cO.ship   = _smallShip.GetComponent<ShipController>();
-        
-        
-        // Activate the starting ship
+        if (_smallShip != null)
+        {
+            cO.target = _smallShip.transform;
+            cO.ship   = _smallShip.GetComponent<ShipController>();
+        }
+
         GameObject startingShip = startShip switch
         {
             StartShip.Small  => _smallShip,
@@ -62,16 +70,13 @@ public class GameManager : MonoBehaviour
             StartShip.Large  => _largeShip,
             _                => _smallShip
         };
-        
+
         if (startingShip != null)
             SwitchToShip(startingShip);
         else
             Debug.LogError("GameManager: starting ship prefab is not assigned!");
     }
-    
-    
-    // Doing call backs was a pain in the ass so I'm doing this one the old polling way 
-    // Just logic for 1-2-3 ship switching 
+
     void Update()
     {
         var kb = Keyboard.current;
@@ -82,33 +87,90 @@ public class GameManager : MonoBehaviour
         else if (kb.digit3Key.wasPressedThisFrame && _largeShip  != null) SwitchToShip(_largeShip);
     }
 
-    // Instantiate a prefab at the origin, or return null if unassigned
-    private static GameObject Spawn(GameObject prefab)
+    private GameObject Spawn(GameObject prefab)
     {
         if (prefab == null) return null;
-        return Instantiate(prefab, Vector3.zero, Quaternion.identity);
+        return Instantiate(prefab, WorldCenter, Quaternion.identity);
     }
 
-    // Call this whenever you want to hand control to a different ship
     public void SwitchToShip(GameObject newShip)
     {
-        // Revoke input from current ship
         if (_currentShipController != null)
             SetPlayerInputEnabled(_currentShipController.gameObject, false);
-        
-        // Grant input to new ship
+
+        // Unsubscribe old health events
+        if (_currentShipHealth != null)
+            _currentShipHealth.OnDeath -= OnShipDied;
+
         _currentShipController = newShip.GetComponent<ShipController>();
+        _currentShipHealth     = newShip.GetComponent<ShipHealth>();
+
         SetPlayerInputEnabled(newShip, true);
-        
-        // Re-point the camera
+
+        // Point camera
         if (_torusCameraComponent != null)
+        {
             _torusCameraComponent.target = newShip.transform;
+            _torusCameraComponent.ship   = _currentShipController;
+        }
+
+        // Subscribe to new ship's death
+        if (_currentShipHealth != null)
+            _currentShipHealth.OnDeath += OnShipDied;
+
+        // BulletTimeController watches ShipHealth.Current
+        ShipHealth.Current = _currentShipHealth;
+
+        // Wire enemy spawner target
+        if (enemySpawner != null)
+            enemySpawner.target = newShip.transform;
+
+        // Popup text: ship type name
+        string shipName = newShip == _smallShip  ? "SMALL SHIP"
+                        : newShip == _mediumShip ? "MEDIUM SHIP"
+                        : "LARGE SHIP";
+        PopupTextSpawner.Instance?.Show(shipName,
+            newShip.transform.position + Vector3.up * 2f,
+            new Color(0.4f, 0.9f, 1f));
+    }
+
+    void OnShipDied()
+    {
+        if (_respawning) return;
+        StartCoroutine(RespawnAfterDelay(_currentShipController?.gameObject));
+    }
+
+    IEnumerator RespawnAfterDelay(GameObject ship)
+    {
+        if (ship == null) yield break;
+        _respawning = true;
+
+        // Disable input during death
+        SetPlayerInputEnabled(ship, false);
+
+        yield return new WaitForSecondsRealtime(respawnDelay);
+
+        // Respawn — restore health, re-enable (boss state not reset)
+        var sh = ship.GetComponent<ShipHealth>();
+        sh?.Respawn();
+
+        // Move ship to a safe-ish spawn point (near world center)
+        ship.transform.position = new Vector3(100f, 60f, 0f);
+
+        SetPlayerInputEnabled(ship, true);
+        ShipHealth.Current = sh;
+
+        PopupTextSpawner.Instance?.Show("SHIP RESPAWNED",
+            ship.transform.position + Vector3.up * 2f,
+            new Color(0.4f, 1f, 0.5f));
+
+        _respawning = false;
     }
 
     private static void SetPlayerInputEnabled(GameObject ship, bool enabled)
     {
         if (ship == null) return;
-        var pi = ship.GetComponent<PlayerInput>();
+        var pi = ship.GetComponent<UnityEngine.InputSystem.PlayerInput>();
         if (pi != null) pi.enabled = enabled;
     }
 }

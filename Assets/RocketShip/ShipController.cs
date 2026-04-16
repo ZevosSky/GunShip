@@ -3,6 +3,7 @@ namespace RocketShip{
 
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Weapons;
 using World;
     
 
@@ -12,19 +13,21 @@ public class ShipController : MonoBehaviour
     [Header("World")]
     [SerializeField] public TorusWorld world;
 
+    [Header("Weapon Mounts")]
+    [SerializeField] private WeaponMount[] weaponMounts = new WeaponMount[0];
+
     [Header("Jerk Chain")]
-    public float jerkForce       = 120f;  // Rate of change of acceleration
+    public float jerkForce       = 120f;
     public float maxAcceleration = 25f;
-    public float accelDecay      = 5f;    // Accel bleeds off when no input
+    public float accelDecay      = 5f;
 
     [Header("Velocity")]
     public float maxSpeed   = 18f;
-    public float linearDrag = 0.8f;       // Velocity damping coefficient
+    public float linearDrag = 0.8f;
 
     [Header("Rotation")]
-    public float rotationSpeed = 180f;    // Degrees per second
+    public float rotationSpeed = 180f;
 
-    // Exposed for camera look-ahead
     public Vector2 Velocity => _velocity;
 
     private float   _angle;
@@ -34,10 +37,29 @@ public class ShipController : MonoBehaviour
     private float   _thrustInput;
     private float   _rotateInput;
 
-    // Sub-step interpolation — keeps rendered position smooth between physics ticks
     private Vector2 _prevPosition;
     private float   _prevAngle;
-    private Vector2 _stepDelta;   // Wrap-safe displacement for the last physics step
+    private Vector2 _stepDelta;
+
+    // ── Weapon hold state ─────────────────────────────────────────────
+    private bool _primaryDown;
+
+    // ── Weapon helpers ────────────────────────────────────────────────
+    private void TriggerDownAll(WeaponRole role)
+    {
+        foreach (var m in weaponMounts)
+            if (m != null && m.Role == role) m.TriggerDown();
+    }
+    private void TriggerUpAll(WeaponRole role)
+    {
+        foreach (var m in weaponMounts)
+            if (m != null && m.Role == role) m.TriggerUp();
+    }
+    private void FireOnceAll(WeaponRole role)
+    {
+        foreach (var m in weaponMounts)
+            if (m != null && m.Role == role) m.FireOnce();
+    }
 
     private void Awake()
     {
@@ -45,65 +67,76 @@ public class ShipController : MonoBehaviour
         _prevPosition = _position;
         _angle        = transform.eulerAngles.z;
         _prevAngle    = _angle;
-        GetComponent<Rigidbody2D>().bodyType = RigidbodyType2D.Kinematic;
+        var rb = GetComponent<Rigidbody2D>();
+        rb.bodyType = RigidbodyType2D.Kinematic;
+        rb.useFullKinematicContacts = true;   // allows OnCollisionEnter2D to fire on this body
     }
 
-    // Called by Unity's Input System PlayerInput component
     private void OnThrust(InputValue v) => _thrustInput = v.Get<float>();
     private void OnRotate(InputValue v) => _rotateInput = v.Get<float>();
-    
+
     void FixedUpdate()
     {
         float dt = Time.fixedDeltaTime;
 
-        // Snapshot state at the START of the step for interpolation smoothing ( for the camera ) 
+        // Apply maneuverability penalty if ShipHealth is present
+        float mult = 1f;
+        if (TryGetComponent(out ShipHealth sh)) mult = sh.ManeuverabilityMult;
+
         _prevPosition = _position;
         _prevAngle    = _angle;
 
-        // Rotation
-        _angle += _rotateInput * rotationSpeed * dt;
+        _angle += _rotateInput * rotationSpeed * mult * dt;
 
-        // Forward direction
         Vector2 forward = new Vector2(
             -Mathf.Sin(_angle * Mathf.Deg2Rad),
              Mathf.Cos(_angle * Mathf.Deg2Rad));
 
-        // Jerk to Acceleration
-        _acceleration += forward * (_thrustInput * jerkForce * dt);
+        _acceleration += forward * (_thrustInput * jerkForce * mult * dt);
         _acceleration  = Vector2.MoveTowards(_acceleration, Vector2.zero, accelDecay * dt);
         _acceleration  = Vector2.ClampMagnitude(_acceleration, maxAcceleration);
 
-        // Acceleration to Velocity
         _velocity += _acceleration * dt;
         _velocity *= Mathf.Clamp01(1f - linearDrag * dt);
         _velocity  = Vector2.ClampMagnitude(_velocity, maxSpeed);
 
-        // Velocity to Position (w/ torus wrap)
         _position += _velocity * dt;
         _position  = world.Wrap(_position);
 
-        // Record the wrap-safe displacement so Update() can interpolate correctly
-        // across seams (e.g. 199 → 1 has ShortestDelta = 2, not -198)
         _stepDelta = world.ShortestDelta(_prevPosition, _position);
-
-        // Do NOT write transform here — Update() handles the visual position.
     }
 
-    // Runs every rendered frame. Blends between the previous and current physics
-    // step positions so the ship never appears to freeze between ticks.
     void Update()
     {
-        // How far we are through the current physics step (0 = just ticked, 1 = about to tick)
         float alpha = Mathf.Clamp01((Time.time - Time.fixedTime) / Time.fixedDeltaTime);
-
-        // Interpolate using the wrap-safe delta:
-        //   alpha=0  ->  _position - _stepDelta  =  _prevPosition  (start of step)
-        //   alpha=1  ->  _position               =  current pos    (end of step)
         Vector2 renderPos   = _position - _stepDelta * (1f - alpha);
         float   renderAngle = Mathf.LerpUnclamped(_prevAngle, _angle, alpha);
 
         transform.position = new Vector3(renderPos.x, renderPos.y, 0f);
         transform.rotation = Quaternion.Euler(0f, 0f, renderAngle);
+
+        //===| Weapon input (keyboard polling — reliable for hold detection) |===========================  
+        var kb = Keyboard.current;
+        if (kb != null)
+        {
+            // Primary hold (SPACE) — chaingun or any Primary-role mount
+            bool primaryNow = kb.spaceKey.isPressed;
+            if (primaryNow  && !_primaryDown) TriggerDownAll(WeaponRole.Primary);
+            if (!primaryNow &&  _primaryDown) TriggerUpAll(WeaponRole.Primary);
+            _primaryDown = primaryNow;
+
+            // Secondary single press (ENTER) — missiles or any Secondary-role mount
+            if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)
+                FireOnceAll(WeaponRole.Secondary);
+
+            // Ship switching (1 / 2 / 3) — kept here from original GameManager
+        }
     }
-}
-}
+
+    // Injects an impulse into the custom physics — called by EnemyBase on contact
+    public void ApplyKnockback(Vector2 impulse)
+    {
+        _velocity = Vector2.ClampMagnitude(_velocity + impulse, maxSpeed);
+    }
+}  // class ShipController
+}  // namespace RocketShip

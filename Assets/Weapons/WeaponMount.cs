@@ -2,8 +2,13 @@
 
 namespace Weapons
 {
+    public enum WeaponRole { Primary, Secondary, Tertiary }
+
     public class WeaponMount : MonoBehaviour
     {
+        [SerializeField] private WeaponRole role = WeaponRole.Primary;
+        public WeaponRole Role => role;
+
         [SerializeField] Transform muzzle;
         [SerializeField] WeaponBase weapon;
 
@@ -12,6 +17,13 @@ namespace Weapons
 
         public void TriggerDown() => weapon?.TriggerDown(FirePoint);
         public void TriggerUp()   => weapon?.TriggerUp();
+
+        // One-shot fire (press + release in same frame – used for missiles)
+        public void FireOnce()
+        {
+            weapon?.TriggerDown(FirePoint);
+            weapon?.TriggerUp();
+        }
 
         private void Update()
         {

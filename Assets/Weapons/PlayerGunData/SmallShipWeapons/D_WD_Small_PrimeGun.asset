@@ -10,25 +10,25 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a844acbd54e9c7d49b132e214a6a1b8e, type: 3}
-  m_Name: D_PlayerWeaponData
+  m_Name: D_WD_Small_PrimeGun
   m_EditorClassIdentifier: Assembly-CSharp::Weapons.WeaponData
-  Type: 0
-  damage: 10
-  maxShotsPerSecond: 10
-  hasSpinUp: 1
+  Type: 1
+  damage: 3
+  maxShotsPerSecond: 1
+  hasSpinUp: 0
   spinUpTime: 1.5
   hasLaserCharge: 0
   chargeTime: 0.75
-  projectileSpeed: 30
-  projectileLifetime: 3
-  maxSpreadDegrees: 5
+  projectileSpeed: 3
+  projectileLifetime: 5
+  maxSpreadDegrees: 4
   knockbackForce: 3
   maxSalvoSize: 5
-  missileSpreadAngle: 30
+  missileSpreadAngle: 20
   missileSalvoResetTime: 3
   missileTurnSpeed: 150
   missileJerkForce: 20
-  projectilePrefab: {fileID: 731175884676510065, guid: fe0aef338f74de94499978d550648fc2, type: 3}
+  projectilePrefab: {fileID: 731175884676510065, guid: 2d19c342bdf82b94b942727aa17f088d, type: 3}
   muzzleVFXPrefab: {fileID: 0}
-  explosionPrefab: {fileID: 0}
+  explosionPrefab: {fileID: 731175884676510065, guid: 32c4d784b526ad54c91e71c25ab4c084, type: 3}
   fireSfx: {fileID: 0}
