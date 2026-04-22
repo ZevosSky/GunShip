@@ -17,7 +17,10 @@ namespace Projectiles
         public void SetDamage(float dmg, float kb) { _damage = dmg; _knockback = kb; }
 
         void OnTriggerEnter2D(Collider2D col)
-            => HandleHit(col.gameObject, col.ClosestPoint(transform.position));
+        {
+            if (ShouldIgnoreTrigger(col)) return;
+            HandleHit(col.gameObject, col.ClosestPoint(transform.position));
+        }
 
         void OnCollisionEnter2D(Collision2D c)
             => HandleHit(c.gameObject,
@@ -44,6 +47,12 @@ namespace Projectiles
                 ApplyKnockback(go.GetComponentInParent<Rigidbody2D>(), sh.transform.position, pt);
             }
             Destroy(gameObject);
+        }
+
+        bool ShouldIgnoreTrigger(Collider2D col)
+        {
+            if (isPlayerProjectile || !col.isTrigger) return false;
+            return col.GetComponentInParent<RocketShip.ShipHealth>() != null;
         }
 
         void ApplyKnockback(Rigidbody2D rb, Vector2 targetPos, Vector2 hitPt)

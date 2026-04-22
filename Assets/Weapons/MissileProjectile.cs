@@ -50,7 +50,7 @@ namespace Weapons
         [Tooltip("Assign the TorusWorld asset so homing math wraps correctly at seams")]
         public TorusWorld world;
 
-        // ── Private state ────────────────────────────────────────────────────────
+        // -- Private state --------------------------------------------------------
         private enum Phase { Drift, Reorient, Boost, Legacy }
 
         private Rigidbody2D _rb;
@@ -60,7 +60,7 @@ namespace Weapons
         private Phase       _phase;
         private Vector2     _boostDir; // direction locked in at start of Boost — never changes
 
-        // ── Unity ────────────────────────────────────────────────────────────────
+        // -- Unity ----------------------------------------------------------------
         void Awake() => _rb = GetComponent<Rigidbody2D>();
 
         void Start()
@@ -81,7 +81,7 @@ namespace Weapons
                 TickLegacy();
         }
 
-        // ── Homing 3-phase state machine ─────────────────────────────────────────
+        // -- Homing 3-phase state machine -----------------------------------------
         void TickHoming()
         {
             switch (_phase)
@@ -133,7 +133,7 @@ namespace Weapons
             }
         }
 
-        // ── Legacy 2-phase (original behaviour) ──────────────────────────────────
+        // -- Legacy 2-phase (original behaviour) ----------------------------------
         void TickLegacy()
         {
             if (_timer < targetLockDelay) return;
@@ -146,7 +146,7 @@ namespace Weapons
             ClampSpeed();
         }
 
-        // ── Helpers ──────────────────────────────────────────────────────────────
+        // -- Helpers --------------------------------------------------------------
 
         /// Rotate toward _target using torus-shortest delta at the given deg/s rate.
         void RotateTowardTarget(float degPerSec)
@@ -176,6 +176,15 @@ namespace Weapons
         /// Find nearest valid target using torus-aware distance.
         Transform FindNearest()
         {
+            if (!isPlayerMissile)
+            {
+                var shipHealth = RocketShip.ShipHealth.Current;
+                if (shipHealth != null && !shipHealth.IsDead) return shipHealth.transform;
+
+                var ship = FindFirstObjectByType<RocketShip.ShipController>();
+                return ship != null ? ship.transform : null;
+            }
+
             Transform best     = null;
             float     bestSq   = float.MaxValue;
             foreach (var h in Health.AllEnemies)
@@ -187,12 +196,15 @@ namespace Weapons
             return best;
         }
 
-        // ── Collision / Explosion ─────────────────────────────────────────────────
+        // -- Collision / Explosion -------------------------------------------------
         void OnTriggerEnter2D(Collider2D col)
         {
             if (_hit) return;
             // Don't arm during Drift — the missile is still leaving the ship.
             if (_phase == Phase.Drift) return;
+            if (!isPlayerMissile && col.isTrigger &&
+                col.GetComponentInParent<RocketShip.ShipHealth>() != null)
+                return;
 
             var hitEnemy = col.GetComponentInParent<Health>();
             var hitShip  = col.GetComponentInParent<RocketShip.ShipHealth>();

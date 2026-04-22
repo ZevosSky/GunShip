@@ -1,13 +1,10 @@
 // BossController.cs
-// Multi-part boss with 3 unique attacks firing from different parts.
-// Attack 1 (FrontGun):    Burst Barrage  — rapid aimed shots
-// Attack 2 (CoreBody):    Spread Ring    — bullets in all directions
-// Attack 3 (Launchers):   Missile Volley — homing missiles from sides
+// Main boss body. Has its own Health (core). Two attached BossParts are damageable
+// independently; when the core dies the parts detach and their independent AI activates.
 //
-// Setup in Inspector:
-//   frontGun    → child BossPart with a muzzle
-//   coreBody    → child BossPart (destroying it = instant boss defeat)
-//   launchers[] → 1-2 side BossParts
+// Attacks (randomly selected each cycle):
+//   Fan Volley    — each gun muzzle fires a sequential fan of bullets with per-shot delay
+//   Missile Salvo — each missile muzzle fires one slow homing missile
 
 using System.Collections;
 using System.Collections.Generic;
@@ -18,68 +15,74 @@ namespace Enemies
 {
     public class BossController : MonoBehaviour
     {
-        // ── Parts ─────────────────────────────────────────────────────────
-        [Header("Boss Parts")]
-        [SerializeField] private BossPart   frontGun;
-        [SerializeField] private BossPart   coreBody;     // destroying this = boss dead
-        [SerializeField] private BossPart[] launchers;
+        // ── Parts ──────────────────────────────────────────────────────────
+        [Header("Boss Parts (damageable, detach on core death)")]
+        [SerializeField] private BossPart partA;   // melee / orbital
+        [SerializeField] private BossPart partB;   // ranged / shooter
 
-        // ── Projectile prefabs ────────────────────────────────────────────
+        // The main body's muzzles live directly on this object
+        [Header("Main Body Muzzle Mounts")]
+        [Tooltip("Gun muzzle Transforms on the main body (for Fan Volley)")]
+        [SerializeField] private Transform[] bodyGunMuzzles    = new Transform[0];
+        [Tooltip("Missile muzzle Transforms on the main body (for Missile Salvo)")]
+        [SerializeField] private Transform[] bodyMissileMuzzles = new Transform[0];
+
+        // ── Projectile prefabs ─────────────────────────────────────────────
         [Header("Projectile Prefabs")]
         [SerializeField] private GameObject bulletPrefab;
         [SerializeField] private GameObject missilePrefab;
 
-        // ── Attack tuning ─────────────────────────────────────────────────
-        [Header("Burst Barrage (FrontGun)")]
-        [SerializeField] private int   burstCount      = 6;
-        [SerializeField] private float burstInterval   = 0.1f;
-        [SerializeField] private float bulletDamage    = 8f;
-        [SerializeField] private float bulletKnockback = 2f;
+        // ── Fan Volley ─────────────────────────────────────────────────────
+        [Header("Fan Volley")]
+        [Tooltip("Number of projectiles fired per gun muzzle")]
+        [SerializeField] private int   fanShotCount   = 5;
+        [Tooltip("Total spread angle of the fan in degrees")]
+        [SerializeField] private float fanAngle       = 60f;
+        [Tooltip("Delay between each successive shot within one gun's fan")]
+        [SerializeField] private float fanShotDelay   = 0.1f;
+        [SerializeField] private float fanDamage      = 8f;
+        [SerializeField] private float fanKnockback   = 2f;
 
-        [Header("Spread Ring (CoreBody)")]
-        [SerializeField] private int   ringCount       = 12;
-        [SerializeField] private float ringDamage      = 6f;
+        // ── Missile Salvo ──────────────────────────────────────────────────
+        [Header("Missile Salvo")]
+        [Tooltip("Damage per missile")]
+        [SerializeField] private float missileDamage   = 25f;
+        [Tooltip("Override missile lifetime (homing duration). 0 = use prefab default")]
+        [SerializeField] private float missileLifetime = 8f;
+        [Tooltip("Override missile turn speed. 0 = use prefab default")]
+        [SerializeField] private float missileTurnSpeed = 120f;
+        [Tooltip("Override missile initial speed. 0 = use prefab default")]
+        [SerializeField] private float missileInitialSpeed = 4f;
 
-        [Header("Missile Volley (Launchers)")]
-        [SerializeField] private int   salvoSize       = 3;
-        [SerializeField] private float missileDamage   = 20f;
-        [SerializeField] private float missileKB       = 5f;
-        [SerializeField] private float missileSpread   = 30f;  // half-angle
-
-        // ── Movement ──────────────────────────────────────────────────────
+        // ── Movement ───────────────────────────────────────────────────────
         [Header("Movement")]
-        [SerializeField] private float moveSpeed    = 2f;
-        [SerializeField] private float preferredDist = 18f;    // desired range from player
+        [SerializeField] private float moveSpeed     = 2f;
+        [SerializeField] private float preferredDist = 18f;
 
-        // ── Cycle ─────────────────────────────────────────────────────────
+        // ── Attack cycle ───────────────────────────────────────────────────
         [Header("Attack Cycle")]
-        [SerializeField] private float pauseBetweenAttacks = 2f;
+        [SerializeField] private float pauseBetweenAttacks = 2.5f;
 
-        // ── Runtime ───────────────────────────────────────────────────────
+        // ── Runtime ────────────────────────────────────────────────────────
         private Transform   _target;
         private Rigidbody2D _rb;
+        private Health      _coreHealth;
         private bool        _dead;
-        private int         _phase;   // 0=all alive, 1=gun lost, 2=launcher lost
 
+        // ══════════════════════════════════════════════════════════════════
         void Start()
         {
-            _rb = GetComponent<Rigidbody2D>();
+            _rb         = GetComponent<Rigidbody2D>();
+            _coreHealth = GetComponent<Health>();
 
-            // Find player
             var sc = FindFirstObjectByType<RocketShip.ShipController>();
             if (sc != null) _target = sc.transform;
 
-            // Subscribe to part deaths
-            if (coreBody != null)
-                coreBody.OnPartDestroyed += _ => OnCoreDestroyed();
-            if (frontGun != null)
-                frontGun.OnPartDestroyed += _ => { _phase = Mathf.Max(_phase, 1); };
-            foreach (var l in launchers)
-                if (l != null) l.OnPartDestroyed += _ => { _phase = Mathf.Max(_phase, 2); };
+            if (_coreHealth != null)
+                _coreHealth.OnDeath += OnCoreDestroyed;
 
             PopupTextSpawner.Instance?.Show("BOSS APPEARED!", transform.position + Vector3.up * 3f,
                                             new Color(1f, 0.2f, 0.2f));
-
             StartCoroutine(AttackLoop());
         }
 
@@ -87,103 +90,134 @@ namespace Enemies
         {
             if (_dead || _target == null || _rb == null) return;
 
-            Vector2 toTarget = (Vector2)(_target.position - transform.position);
-            float dist = toTarget.magnitude;
-
-            // Orbit / approach at preferred distance
+            Vector2 toTarget   = (Vector2)(_target.position - transform.position);
+            float   dist       = toTarget.magnitude;
             Vector2 desiredVel = dist > preferredDist
                 ? toTarget.normalized * moveSpeed
                 : -toTarget.normalized * (moveSpeed * 0.5f);
 
             _rb.linearVelocity = Vector2.Lerp(_rb.linearVelocity, desiredVel, 0.1f);
 
-            // Always face the player
             float angle = Mathf.Atan2(toTarget.y, toTarget.x) * Mathf.Rad2Deg - 90f;
             transform.rotation = Quaternion.RotateTowards(
                 transform.rotation, Quaternion.Euler(0f, 0f, angle), 60f * Time.fixedDeltaTime);
         }
 
-        // ── Attack loop ───────────────────────────────────────────────────
+        // ── Attack loop ────────────────────────────────────────────────────
         IEnumerator AttackLoop()
         {
             while (!_dead)
             {
                 yield return new WaitForSeconds(pauseBetweenAttacks);
+                if (_dead) yield break;
 
-                // Build list of available attacks
+                // Build available attacks based on whether muzzles exist
                 var available = new List<IEnumerator>();
-                if (frontGun  != null && frontGun.IsAlive)  available.Add(BurstBarrage());
-                if (coreBody  != null && coreBody.IsAlive)  available.Add(SpreadRing());
-                bool hasLauncher = false;
-                foreach (var l in launchers) if (l != null && l.IsAlive) { hasLauncher = true; break; }
-                if (hasLauncher) available.Add(MissileVolley());
-
-                // Phase 2+ → attacks are faster
-                if (_phase >= 2) pauseBetweenAttacks = Mathf.Max(0.8f, pauseBetweenAttacks - 0.1f);
+                if (bodyGunMuzzles.Length    > 0 && bulletPrefab  != null) available.Add(FanVolley());
+                if (bodyMissileMuzzles.Length > 0 && missilePrefab != null) available.Add(MissileSalvo());
 
                 if (available.Count == 0) yield break;
-                int pick = Random.Range(0, available.Count);
-                yield return StartCoroutine(available[pick]);
+                yield return StartCoroutine(available[Random.Range(0, available.Count)]);
             }
         }
 
-        // ── Attack 1: Burst Barrage ───────────────────────────────────────
-        IEnumerator BurstBarrage()
+        // ── Attack 1: Fan Volley ───────────────────────────────────────────
+        // Each gun muzzle fires fanShotCount shots spread across fanAngle degrees,
+        // relative to the muzzle's own facing direction (rotates with the boss).
+        IEnumerator FanVolley()
         {
-            if (frontGun == null || !frontGun.IsAlive || _target == null) yield break;
-            for (int i = 0; i < burstCount; i++)
+            foreach (var muzzle in bodyGunMuzzles)
             {
-                frontGun.FireAt(bulletPrefab, _target.position, bulletDamage, bulletKnockback);
-                yield return new WaitForSeconds(burstInterval);
-            }
-        }
+                if (muzzle == null) continue;
 
-        // ── Attack 2: Spread Ring ─────────────────────────────────────────
-        IEnumerator SpreadRing()
-        {
-            if (coreBody == null || !coreBody.IsAlive) yield break;
-            float step = 360f / ringCount;
-            for (int i = 0; i < ringCount; i++)
-                coreBody.FireDir(bulletPrefab, i * step, ringDamage, bulletKnockback);
-            yield return null;
-        }
+                // Base angle from the muzzle's own up-axis (rotates with the boss)
+                float baseAngle = Mathf.Atan2(muzzle.up.y, muzzle.up.x) * Mathf.Rad2Deg - 90f;
 
-        // ── Attack 3: Missile Volley ──────────────────────────────────────
-        IEnumerator MissileVolley()
-        {
-            if (_target == null) yield break;
-            foreach (var launcher in launchers)
-            {
-                if (launcher == null || !launcher.IsAlive) continue;
-                float halfSpread = missileSpread;
-                for (int i = 0; i < salvoSize; i++)
+                for (int i = 0; i < fanShotCount; i++)
                 {
-                    float ang = salvoSize == 1 ? 0f
-                        : Mathf.Lerp(-halfSpread, halfSpread, (float)i / (salvoSize - 1));
-                    Vector2 dir = (Vector2)(_target.position - launcher.muzzle.position);
-                    float baseAngle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg - 90f;
-                    launcher.FireDir(missilePrefab, baseAngle + ang, missileDamage, missileKB);
+                    float t      = fanShotCount == 1 ? 0f : (float)i / (fanShotCount - 1);
+                    float spread = Mathf.Lerp(-fanAngle * 0.5f, fanAngle * 0.5f, t);
+                    float angle  = baseAngle + spread;
+
+                    var go = Object.Instantiate(bulletPrefab, muzzle.position, Quaternion.Euler(0f, 0f, angle));
+                    if (go.TryGetComponent(out Projectiles.DamageDealer dd))
+                    {
+                        dd.isPlayerProjectile = false;
+                        dd.SetDamage(fanDamage, fanKnockback);
+                    }
+
+                    yield return new WaitForSeconds(fanShotDelay);
                 }
-                yield return new WaitForSeconds(0.3f);
             }
         }
 
+        // ── Attack 2: Missile Salvo ────────────────────────────────────────
+        // Each missile muzzle fires one slow homing missile.
+        IEnumerator MissileSalvo()
+        {
+            foreach (var muzzle in bodyMissileMuzzles)
+            {
+                if (muzzle == null) continue;
+
+                var go = Object.Instantiate(missilePrefab, muzzle.position, muzzle.rotation);
+                if (go.TryGetComponent(out Weapons.MissileProjectile mp))
+                {
+                    mp.isPlayerMissile = false;
+                    mp.damage          = missileDamage;
+                    if (missileLifetime    > 0f) mp.lifetime      = missileLifetime;
+                    if (missileTurnSpeed   > 0f) mp.turnSpeed     = missileTurnSpeed;
+                    if (missileInitialSpeed > 0f) mp.initialSpeed = missileInitialSpeed;
+                    mp.isHoming = true;
+                }
+
+                yield return new WaitForSeconds(0.25f); // stagger per launcher
+            }
+        }
+
+        // ── Core death → detach parts ──────────────────────────────────────
         void OnCoreDestroyed()
         {
             _dead = true;
             StopAllCoroutines();
 
-            // Destroy all remaining parts
-            if (frontGun != null && frontGun.IsAlive)
-                frontGun.PartHealth.TakeDamage(9999f);
-            foreach (var l in launchers)
-                if (l != null && l.IsAlive) l.PartHealth.TakeDamage(9999f);
+            // Detach and activate each surviving part's independent AI
+            DetachPart(partA);
+            DetachPart(partB);
 
-            PopupTextSpawner.Instance?.Show("BOSS DEFEATED!", transform.position + Vector3.up * 2f,
+            PopupTextSpawner.Instance?.Show("BOSS CORE DESTROYED!", transform.position + Vector3.up * 2f,
                                             new Color(1f, 0.9f, 0f));
-            Destroy(gameObject, 0.5f);
+
+            // Destroy only the main body — parts are now independent
+            Destroy(gameObject);
+        }
+
+        // ── Gizmos ────────────────────────────────────────────────────────
+        void OnDrawGizmosSelected()
+        {
+            DrawMuzzleGizmos(bodyGunMuzzles,     new Color(1f, 0.8f, 0f));
+            DrawMuzzleGizmos(bodyMissileMuzzles, new Color(1f, 0.3f, 0.1f));
+        }
+
+        static void DrawMuzzleGizmos(Transform[] muzzles, Color col)
+        {
+            if (muzzles == null) return;
+            Gizmos.color = col;
+            foreach (var m in muzzles)
+            {
+                if (m == null) continue;
+                Gizmos.DrawSphere(m.position, 0.15f);
+                Gizmos.DrawLine(m.position, m.position + m.up * 1.2f);
+            }
+        }
+
+        static void DetachPart(BossPart part)
+        {
+            if (part == null || !part.IsAlive) return;
+            part.transform.SetParent(null);
+            var melee   = part.GetComponent<MeleePartAI>();
+            var shooter = part.GetComponent<ShooterPartAI>();
+            if (melee   != null) melee.enabled   = true;
+            if (shooter != null) shooter.enabled = true;
         }
     }
 }
-
-

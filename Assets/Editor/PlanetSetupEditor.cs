@@ -1,16 +1,16 @@
 ﻿//==============================================================================
 // @File:   PlanetSetupEditor.cs
-// @brief:  One-click scene setup for the orbital planet background.
+// @brief:  One-click scene setup for the procedural space background.
 //
 //  Menu:  Tools ▶ Setup Planet Background
 //
 //  What it does
 //  ─────────────
 //  1. Finds the TorusCamera in the active scene.
-//  2. Creates / reuses PlanetSurface.mat and AtmosphereRim.mat
+//  2. Creates / reuses PlanetShader2.mat and AtmosphereRim.mat
 //     in Assets/World/Materials/.
 //  3. Creates PlanetSphere + AtmosphereSphere GameObjects, scaled to fit
-//     the camera's orthographic size.
+//     the camera's orthographic size as the optional hero planet.
 //  4. Adds PlanetBackground to the camera and wires all references.
 //  5. Marks the scene dirty so you just hit Ctrl+S to save.
 //==============================================================================
@@ -25,7 +25,7 @@ namespace World.Editor
 {
     public static class PlanetSetupEditor
     {
-        private const string PlanetShaderName    = "Custom/PlanetSurface";
+        private const string PlanetShaderName    = "Custom/PlanetProcedural";
         private const string AtmosphereShaderName = "Custom/AtmosphereRim";
         private const string MatFolder           = "Assets/World/Materials";
 
@@ -48,7 +48,7 @@ namespace World.Editor
             var planetShader = Shader.Find(PlanetShaderName);
             if (planetShader == null)
             {
-                Debug.LogError("[PlanetSetup] Shader 'Custom/PlanetSurface' not found. " +
+                Debug.LogError("[PlanetSetup] Shader 'Custom/PlanetProcedural' not found. " +
                                "Make sure Unity has imported the shader (check Assets/World/Shaders/).");
                 return;
             }
@@ -64,10 +64,10 @@ namespace World.Editor
             if (!AssetDatabase.IsValidFolder(MatFolder))
                 AssetDatabase.CreateFolder("Assets/World", "Materials");
 
-            var planetMat = GetOrCreateMaterial(MatFolder + "/PlanetProcedural.mat", planetShader, mat =>
+            var planetMat = GetOrCreateMaterial(MatFolder + "/PlanetShader2.mat", planetShader, mat =>
             {
                 // Generation
-                mat.SetFloat("_Seed",       0f);
+                mat.SetFloat("_Seed",       438f);
                 mat.SetFloat("_NoiseScale", 2.5f);
                 mat.SetFloat("_WaterLevel", 0.50f);
                 // Biome colours
@@ -80,7 +80,7 @@ namespace World.Editor
                 mat.SetColor("_SnowColor",         new Color(0.92f, 0.95f, 1.00f));
                 // Atmosphere
                 mat.SetColor("_AtmosphereColor",    new Color(0.25f, 0.55f, 1.0f));
-                mat.SetFloat("_AtmosphereStrength", 1.2f);
+                mat.SetFloat("_AtmosphereStrength", 0.35f);
                 mat.SetFloat("_AtmospherePower",    3.5f);
                 // Lighting
                 mat.SetVector("_SunDir",      new Vector4(1f, 0.5f, -2f, 0f));
@@ -90,9 +90,9 @@ namespace World.Editor
             var atmosphereMat = GetOrCreateMaterial(MatFolder + "/AtmosphereRim.mat", atmosphereShader, mat =>
             {
                 mat.SetColor("_GlowColor",    new Color(0.3f, 0.65f, 1.0f, 1.0f));
-                mat.SetFloat("_SurfaceFade",  3.0f);   // peak at planet-atmosphere boundary
+                mat.SetFloat("_SurfaceFade",  3.6f);   // peak at planet-atmosphere boundary
                 mat.SetFloat("_RimPower",     1.0f);   // soft fade into space
-                mat.SetFloat("_RimStrength",  0.85f);  // normalised, so 1.0 = full intensity
+                mat.SetFloat("_RimStrength",  0.55f);  // normalised, so 1.0 = full intensity
             });
 
             AssetDatabase.SaveAssets();
@@ -111,11 +111,11 @@ namespace World.Editor
             // Planet fills ~90 % of screen height → you see it as a large disc
             // with dark space visible in the corners (16:9).
             //
-            // Atmosphere is 1.5× the planet so its halo extends well beyond the
-            // planet's edge — the previous 1.06× was only 3 % per side, invisible.
+            // Atmosphere is slightly larger than the body. The runtime system
+            // handles the rest of the procedural planets/stars/asteroids.
             float screenH      = ortho * 2f;                  // e.g. 10 units
-            float planetDia    = screenH * 0.9f;              // e.g. 9.0 units
-            float atmosphereDia = planetDia * 1.5f;           // e.g. 13.5 units
+            float planetDia    = screenH * 0.55f;             // e.g. 5.5 units
+            float atmosphereDia = planetDia * 1.14f;          // e.g. 6.27 units
 
             // ── 6. Planet sphere ──────────────────────────────────────────────
             var planetObj = CreateOrFindSphere("PlanetSphere",
@@ -142,6 +142,7 @@ namespace World.Editor
             so.FindProperty("planetRenderer")      .objectReferenceValue = planetObj.GetComponent<MeshRenderer>();
             so.FindProperty("atmosphereRenderer")  .objectReferenceValue = atmObj.GetComponent<MeshRenderer>();
             so.FindProperty("parallaxScale")       .floatValue           = 1f;
+            so.FindProperty("heroPlanetParallax")  .floatValue           = 0.12f;
             so.ApplyModifiedProperties();
 
             // ── 9. Done ───────────────────────────────────────────────────────
@@ -150,9 +151,10 @@ namespace World.Editor
             Debug.Log("[PlanetSetup] ✓ Done!\n" +
                       "  • PlanetSphere      (scale " + planetDia.ToString("F2") + ")\n" +
                       "  • AtmosphereSphere  (scale " + atmosphereDia.ToString("F2") + ")\n" +
-                      "  • PlanetBackground  added to " + torusCamera.gameObject.name + "\n\n" +
-                      "Tune the planet in the Inspector:\n" +
-                      "  " + MatFolder + "/PlanetProcedural.mat\n" +
+                      "  • PlanetBackground  added to " + torusCamera.gameObject.name + "\n" +
+                      "  • Procedural stars / asteroids / extra planets will generate at runtime\n\n" +
+                      "Tune the hero planet in the Inspector:\n" +
+                      "  " + MatFolder + "/PlanetShader2.mat\n" +
                       "    _Seed        — new value = new planet\n" +
                       "    _WaterLevel  — 0.3 land-heavy, 0.7 ocean world\n" +
                       "    _NoiseScale  — lower = bigger continents\n" +

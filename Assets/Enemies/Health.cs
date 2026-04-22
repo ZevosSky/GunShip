@@ -21,6 +21,8 @@ namespace Enemies
         [SerializeField] [Range(0f, 1f)] private float healthRatio;
 
         [Header("Hit Flash")]
+        [Tooltip("Collect all SpriteRenderers from this GameObject and its children. Overrides manual flashRenderers list when set.")]
+        [SerializeField] private GameObject flashRoot;
         [Tooltip("Sprites to flash on hit. Leave empty to auto-detect the SpriteRenderer on this GameObject.")]
         [SerializeField] private SpriteRenderer[] flashRenderers;
         [SerializeField] private Color  flashColor    = Color.white;
@@ -47,6 +49,10 @@ namespace Enemies
         void Awake()
         {
             CurrentHealth = maxHealth;
+
+            // flashRoot overrides manual list — collect all SpriteRenderers in that hierarchy
+            if (flashRoot != null)
+                flashRenderers = flashRoot.GetComponentsInChildren<SpriteRenderer>(true);
 
             // Auto-detect if nothing assigned
             if (flashRenderers == null || flashRenderers.Length == 0)

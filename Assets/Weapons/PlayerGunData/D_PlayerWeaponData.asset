@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: D_PlayerWeaponData
   m_EditorClassIdentifier: Assembly-CSharp::Weapons.WeaponData
   Type: 0
-  damage: 10
+  damage: 3
   maxShotsPerSecond: 10
   hasSpinUp: 1
-  spinUpTime: 1.5
+  spinUpTime: 3
   hasLaserCharge: 0
   chargeTime: 0.75
   projectileSpeed: 30
@@ -28,6 +28,13 @@ MonoBehaviour:
   missileSalvoResetTime: 3
   missileTurnSpeed: 150
   missileJerkForce: 20
+  isHoming: 0
+  missileHomingDriftTime: 0.6
+  missileDriftDrag: 4
+  missileHomingReorientTime: 0.4
+  missileBoostImpulse: 25
+  missileBoostForce: 30
+  missileBoostDuration: 1.5
   projectilePrefab: {fileID: 731175884676510065, guid: fe0aef338f74de94499978d550648fc2, type: 3}
   muzzleVFXPrefab: {fileID: 0}
   explosionPrefab: {fileID: 0}

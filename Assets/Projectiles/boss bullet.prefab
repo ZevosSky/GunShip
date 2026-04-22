@@ -13,8 +13,8 @@ GameObject:
   - component: {fileID: 2414221932982000244}
   - component: {fileID: 8012835212760006423}
   - component: {fileID: 9094777747686550695}
-  m_Layer: 6
-  m_Name: BulletProjectile
+  m_Layer: 8
+  m_Name: boss bullet
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -30,7 +30,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.34, y: 0.57627124, z: 0.57627124}
+  m_LocalScale: {x: 0.82, y: 1.3898306, z: 1.3898306}
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 2783891653812055258}
@@ -111,8 +111,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ce5156f9de75456298f35f350946b58d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Projectiles.BulletProjectile
-  speed: 30
-  lifetime: 2.61
+  speed: 7
+  lifetime: 9.45
 --- !u!114 &9094777747686550695
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -125,7 +125,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 414f17b366124d48a1b29189c088f332, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Projectiles.DamageDealer
-  isPlayerProjectile: 1
+  isPlayerProjectile: 0
 --- !u!1 &5745356416756232786
 GameObject:
   m_ObjectHideFlags: 0
@@ -136,7 +136,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2783891653812055258}
   - component: {fileID: 996780327104586535}
-  m_Layer: 6
+  m_Layer: 8
   m_Name: Circle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
