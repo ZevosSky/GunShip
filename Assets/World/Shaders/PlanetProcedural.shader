@@ -11,8 +11,9 @@
 //     _WaterLevel controls the ocean / land ratio.
 //     ( Substance Designer Levels Node essentially ) 
 //  3. Atmosphere rim and dark-side tint identical to PlanetSurface.shader.
-//  4. _CamUVOffset (driven by PlanetBackground.cs) scrolls the UV each
-//     frame so the planet surface tracks the ship's position.
+//  4. The surface now samples from spherical coordinates derived from the
+//     mesh normal so continents wrap like a globe instead of reading as a
+//     front-projected lens.
 //
 // Tuning quick-reference
 // --------------------------------------------------------------------
@@ -94,6 +95,7 @@ Shader "Custom/PlanetProcedural"
                 float2 uv          : TEXCOORD0;
                 float3 normalWS    : TEXCOORD1;
                 float3 positionWS  : TEXCOORD2;
+                float3 normalOS    : TEXCOORD3;
             };
 
             // ── cbuffer ───────────────────────────────────────────────────────
@@ -215,17 +217,9 @@ Shader "Custom/PlanetProcedural"
                 Varyings OUT;
                 OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
 
-                // Use local-space XY as the noise projection, NOT the sphere mesh UV.
-                // Unity's sphere has its pole facing the camera, so mesh UVs converge
-                // to a single point at the top — every fragment samples the same noise
-                // position and the output looks uniform (default texture appearance).
-                //
-                // Local XY ranges from -0.5..0.5 across the sphere diameter.
-                // +0.5 remaps that to 0..1, giving a clean overhead projection
-                // with no pole distortion at all.
-                OUT.uv        = IN.positionOS.xy + 0.5 + _CamUVOffset.xy;
-
+                OUT.uv        = _CamUVOffset.xy;
                 OUT.normalWS  = TransformObjectToWorldNormal(IN.normalOS);
+                OUT.normalOS  = normalize(IN.normalOS);
                 OUT.positionWS = TransformObjectToWorld(IN.positionOS.xyz);
                 return OUT;
             }
@@ -235,10 +229,14 @@ Shader "Custom/PlanetProcedural"
             {
                 float3 normal  = normalize(IN.normalWS);
 
-                // Evaluate FBM at the scrolled, scaled, seeded UV.
-                // The float2 seed offset ensures different seeds sample
-                // different regions of the infinite noise field.
-                float2 noiseUV = IN.uv * _NoiseScale
+                float3 sphereDir = normalize(IN.normalOS);
+                float2 sphereUV;
+                sphereUV.x = atan2(sphereDir.x, sphereDir.z) * 0.15915494 + 0.5;
+                sphereUV.y = asin(sphereDir.y) * 0.31830989 + 0.5;
+
+                // Evaluate FBM from spherical coordinates so landmasses wrap
+                // around the globe instead of being projected onto the front.
+                float2 noiseUV = (sphereUV + IN.uv) * _NoiseScale
                                + float2(_Seed * 0.1000, _Seed * 0.1370);
                 float  height  = FBM(noiseUV, _Seed);
 
@@ -253,14 +251,15 @@ Shader "Custom/PlanetProcedural"
                 // whole visible face flat.
                 float3 sunDir = normalize(_SunDir.xyz);
                 float  NdotL  = saturate(dot(normal, sunDir));
-                color        *= _AmbientLight + (1.0 - _AmbientLight) * NdotL;
+                float  diffuse = smoothstep(0.0, 0.35, NdotL);
+                color        *= lerp(_AmbientLight, 1.0, diffuse);
 
                 // ── Atmosphere rim ────────────────────────────────────────────
                 float3 viewDir = normalize(_WorldSpaceCameraPos.xyz - IN.positionWS);
                 float  NdotV   = saturate(dot(normal, viewDir));
                 float  rim     = pow(1.0 - NdotV, _AtmospherePower);
                 color          = lerp(color, _AtmosphereColor.rgb,
-                                      saturate(rim * _AtmosphereStrength));
+                                      saturate(rim * _AtmosphereStrength * 0.45));
 
 
                 return half4(color, 1.0);

@@ -29,6 +29,10 @@
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
 
+# Unity recovery scenes are local crash/editor recovery state.
+/[Aa]ssets/_Recovery/
+/[Aa]ssets/_Recovery.meta
+
 # MemoryCaptures can get excessive in size.
 # They also could contain extremely sensitive data
 /[Mm]emoryCaptures/
@@ -116,5 +120,8 @@ fmod_editor.log
 .DS_Store
 mono_crash*.json
 .vsconfig
+
+# Office lock files
+~$*
 
 

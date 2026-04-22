@@ -1,4 +1,3 @@
-
 // @author: Gary Yang
 // @description: Systematic Scalable Enemy Spawner will take prefabs and updatable
 //               Configs for logic around spawning. Enemies
@@ -40,6 +39,16 @@ namespace GameManager
         {
             _spawnCounts = new int[enemySpawnInfos.Count];
             RecalcWeight();
+
+            // Fallback: if GameManager hasn't wired a target, find the player ourselves
+            if (target == null)
+            {
+                var sc = FindFirstObjectByType<RocketShip.ShipController>();
+                if (sc != null)
+                    target = sc.transform;
+                else
+                    Debug.LogWarning("[EnemySpawner] No target and no ShipController found — enemies will not spawn.");
+            }
         }
 
         void RecalcWeight()
@@ -51,7 +60,13 @@ namespace GameManager
 
         void Update()
         {
-            if (target == null) return;
+            // Keep retrying until we find a target
+            if (target == null)
+            {
+                var sc = FindFirstObjectByType<RocketShip.ShipController>();
+                if (sc != null) target = sc.transform;
+                return;
+            }
 
             _timer += Time.deltaTime;
             if (_timer >= spawnInterval)

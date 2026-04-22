@@ -25,6 +25,23 @@ namespace RocketShip
         [Header("Death & Respawn")]
         [SerializeField] private GameObject explosionPrefab;
 
+        [Header("Hit Flash")]
+        [Tooltip("Sprites to flash on hit. Leave empty to auto-detect the SpriteRenderer on this GameObject.")]
+        [SerializeField] private SpriteRenderer[] flashRenderers;
+        [SerializeField] private Color flashColor    = Color.white;
+        [SerializeField] private float flashDuration = 0.1f;
+
+        [Header("Invincibility Frames")]
+        [Tooltip("Seconds of damage immunity after being hit. 0 = no iframes.")]
+        [SerializeField] private float iframeDuration;
+
+        [Header("Effects")]
+        [SerializeField] private ParticleSystem damageTrail;
+        [SerializeField] [Range(0f, 1f)] private float damageTrailHealthThreshold = 0.6f;
+        [SerializeField] [Range(0f, 1f)] private float handlingPenaltyStartsBelowHealthRatio = 0.55f;
+        [SerializeField] [Range(0f, 1f)] private float minimumThrustMultiplier = 0.75f;
+        [SerializeField] [Range(0f, 1f)] private float minimumTurnMultiplier = 0.85f;
+
         // ── Events ────────────────────────────────────────────────────────
         public event Action<float> OnHealthChanged;   // ratio [0-1]
         public event Action        OnDeath;
@@ -36,28 +53,45 @@ namespace RocketShip
         public bool  IsLowHealth    => HealthRatio < 0.25f;
 
         // ── Maneuverability multiplier, read by ShipController ────────────
-        public float ManeuverabilityMult { get; private set; } = 1f;
+        public float ThrustMultiplier { get; private set; } = 1f;
+        public float TurnMultiplier   { get; private set; } = 1f;
+        public float ManeuverabilityMult => ThrustMultiplier;
 
         // ── Private ───────────────────────────────────────────────────────
         private float          _regenTimer;
-        private TrailRenderer  _trail;
-        private SpriteRenderer _sr;
-        private Color          _baseColor;
+        private Color[]        _baseColors;
         private float          _flashTimer;
-        private const float    FlashDuration = 0.1f;
+        private float          _iframeTimer;
 
         void Awake()
         {
             CurrentHealth = maxHealth;
-            _trail = GetComponentInChildren<TrailRenderer>();
-            _sr    = GetComponent<SpriteRenderer>();
-            if (_sr != null) _baseColor = _sr.color;
-            if (_trail != null) _trail.emitting = false;
+
+            // Auto-detect if nothing assigned
+            if (flashRenderers == null || flashRenderers.Length == 0)
+            {
+                var sr = GetComponent<SpriteRenderer>();
+                flashRenderers = sr != null ? new[] { sr } : new SpriteRenderer[0];
+            }
+
+            _baseColors = new Color[flashRenderers.Length];
+            for (int i = 0; i < flashRenderers.Length; i++)
+                if (flashRenderers[i] != null) _baseColors[i] = flashRenderers[i].color;
+
+            if (damageTrail != null)
+            {
+                var e = damageTrail.emission;
+                e.enabled = false;
+                damageTrail.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            }
         }
 
         void Update()
         {
             if (IsDead) return;
+
+            // Iframe timer
+            if (_iframeTimer > 0f) _iframeTimer -= Time.deltaTime;
 
             // Regen after delay
             if (_regenTimer > 0f)
@@ -73,18 +107,23 @@ namespace RocketShip
             if (_flashTimer > 0f)
             {
                 _flashTimer -= Time.deltaTime;
-                if (_sr != null)
-                    _sr.color = _flashTimer > 0f ? Color.white : _baseColor;
+                bool flashing = _flashTimer > 0f;
+                for (int i = 0; i < flashRenderers.Length; i++)
+                    if (flashRenderers[i] != null)
+                        flashRenderers[i].color = flashing ? flashColor : _baseColors[i];
             }
         }
 
         public void TakeDamage(float amount)
         {
             if (IsDead) return;
+            if (_iframeTimer > 0f) return;
+
             CurrentHealth  = Mathf.Max(0f, CurrentHealth - amount);
             _regenTimer    = regenDelay;
+            _flashTimer    = flashDuration;
+            _iframeTimer   = iframeDuration;
             OnHealthChanged?.Invoke(HealthRatio);
-            _flashTimer    = FlashDuration;
 
             PopupTextSpawner.Instance?.Show(
                 $"-{Mathf.RoundToInt(amount)}",
@@ -97,6 +136,9 @@ namespace RocketShip
 
         void OnCollisionEnter2D(Collision2D col)
         {
+            // Enemies handle their own contact damage — ignore them here
+            if (col.gameObject.GetComponentInParent<Enemies.EnemyBase>() != null) return;
+
             float impact = col.relativeVelocity.magnitude;
             if (impact > minCollisionSpeed)
                 TakeDamage(impact * collisionDamageMultiplier);
@@ -104,12 +146,22 @@ namespace RocketShip
 
         void RefreshEffects()
         {
-            // Damage trail activates below 60 % health
-            if (_trail != null)
-                _trail.emitting = HealthRatio < 0.6f;
+            // Damage trail activates below threshold health
+            if (damageTrail != null)
+            {
+                bool shouldPlay = HealthRatio < damageTrailHealthThreshold;
+                var emission = damageTrail.emission;
+                if (emission.enabled != shouldPlay)
+                {
+                    emission.enabled = shouldPlay;
+                    if (shouldPlay) damageTrail.Play();
+                    else            damageTrail.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                }
+            }
 
-            // Maneuverability scales from 1 (full health) to 0.4 (near death)
-            ManeuverabilityMult = Mathf.Lerp(0.4f, 1f, HealthRatio);
+            float handlingRatio = Mathf.InverseLerp(0f, handlingPenaltyStartsBelowHealthRatio, HealthRatio);
+            ThrustMultiplier = Mathf.Lerp(minimumThrustMultiplier, 1f, handlingRatio);
+            TurnMultiplier   = Mathf.Lerp(minimumTurnMultiplier, 1f, handlingRatio);
         }
 
         void Die()
@@ -131,9 +183,11 @@ namespace RocketShip
             IsDead        = false;
             CurrentHealth = maxHealth;
             _regenTimer   = 0f;
-            ManeuverabilityMult = 1f;
-            if (_trail != null) _trail.emitting = false;
-            if (_sr    != null) _sr.color = _baseColor;
+            ThrustMultiplier = 1f;
+            TurnMultiplier   = 1f;
+            if (damageTrail != null) damageTrail.Stop();
+            for (int i = 0; i < flashRenderers.Length; i++)
+                if (flashRenderers[i] != null) flashRenderers[i].color = _baseColors[i];
             OnHealthChanged?.Invoke(1f);
         }
     }

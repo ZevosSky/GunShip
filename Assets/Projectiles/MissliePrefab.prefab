@@ -11,8 +11,8 @@ GameObject:
   - component: {fileID: 5759617388424000000}
   - component: {fileID: 6230108242172677104}
   - component: {fileID: 2414221932982000244}
-  - component: {fileID: 8012835212760006423}
   - component: {fileID: 9094777747686550695}
+  - component: {fileID: 2687340670202860887}
   m_Layer: 0
   m_Name: MissliePrefab
   m_TagString: Untagged
@@ -35,6 +35,7 @@ Transform:
   m_Children:
   - {fileID: 2079048480623767304}
   - {fileID: 4518852946918114169}
+  - {fileID: 1474153429685497309}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!50 &6230108242172677104
@@ -99,21 +100,7 @@ CircleCollider2D:
   m_CompositeOperation: 0
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0}
-  m_Radius: 0.27
---- !u!114 &8012835212760006423
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 731175884676510065}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ce5156f9de75456298f35f350946b58d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Projectiles.BulletProjectile
-  speed: 30
-  lifetime: 3
+  m_Radius: 0.55
 --- !u!114 &9094777747686550695
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -127,6 +114,68 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Projectiles.DamageDealer
   isPlayerProjectile: 1
+--- !u!114 &2687340670202860887
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 731175884676510065}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b3b6682fccd3ec4faff4dfecd572dba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Weapons.MissileProjectile
+  initialSpeed: 7.4
+  jerkForce: 20
+  maxSpeed: 60
+  turnSpeed: 150
+  targetLockDelay: 0.5
+  lifetime: 3
+  isHoming: 1
+  driftDuration: 1
+  driftDrag: 5
+  reorientDuration: 1
+  boostImpulse: 60
+  boostForce: 50
+  boostMaxSpeed: 200
+  boostDuration: 3
+  boostTurnSpeed: 0.01
+  damage: 5
+  isPlayerMissile: 1
+  explosionPrefab: {fileID: 6665386453100673428, guid: e787f56fd0a6efc47bd1c17c48ef4de5, type: 3}
+  world: {fileID: 11400000, guid: 9c141baaf1eab4647be56ac1a1cc8a7f, type: 2}
+--- !u!1 &1302910291755773868
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1474153429685497309}
+  m_Layer: 0
+  m_Name: Particles
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1474153429685497309
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1302910291755773868}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5759617388424000000}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2240175905550732934
 GameObject:
   m_ObjectHideFlags: 0
@@ -152,13 +201,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2240175905550732934}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.56, z: 0}
-  m_LocalScale: {x: 0.48, y: 0.3, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_LocalRotation: {x: 0, y: 0.0015707754, z: 0, w: 0.9999988}
+  m_LocalPosition: {x: 0, y: -0.56, z: 0.63}
+  m_LocalScale: {x: 0.89, y: 0.42246842, z: 1.4082279}
+  m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 5759617388424000000}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0.18, z: 0}
 --- !u!212 &2257692721677175619
 SpriteRenderer:
   serializedVersion: 2
@@ -209,7 +258,7 @@ SpriteRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: 7482667652216324306, guid: 75f5f34dc1b5347e0b8351032682f224, type: 3}
-  m_Color: {r: 0.7735849, g: 0.2422926, b: 0.6157486, a: 1}
+  m_Color: {r: 0.30782786, g: 0.77254903, b: 0.24313726, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0

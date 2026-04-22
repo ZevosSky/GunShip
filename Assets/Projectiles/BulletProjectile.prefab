@@ -112,7 +112,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Projectiles.BulletProjectile
   speed: 30
-  lifetime: 3
+  lifetime: 2.61
 --- !u!114 &9094777747686550695
 MonoBehaviour:
   m_ObjectHideFlags: 0

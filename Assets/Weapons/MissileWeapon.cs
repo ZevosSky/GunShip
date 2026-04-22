@@ -5,6 +5,7 @@
 using System.Collections;
 using UnityEngine;
 using Projectiles;
+using World;
 
 namespace Weapons
 {
@@ -14,6 +15,10 @@ namespace Weapons
         [Header("Burst / Cooldown")]
         [SerializeField] private float cooldown         = 4f;   // seconds between bursts
         [SerializeField] private float burstFireDelay   = 0.08f; // seconds between each missile in burst
+
+        [Header("Torus World")]
+        [Tooltip("Assign D_TorusWorld so homing missiles steer correctly at seams")]
+        [SerializeField] private TorusWorld world;
 
         private bool  _onCooldown;
         private float _cooldownTimer;
@@ -72,6 +77,16 @@ namespace Weapons
                     mp.turnSpeed       = data.missileTurnSpeed;
                     mp.jerkForce       = data.missileJerkForce;
                     mp.isPlayerMissile = true;
+
+                    // Homing phase config
+                    mp.isHoming         = data.isHoming;
+                    mp.driftDuration    = data.missileHomingDriftTime;
+                    mp.driftDrag        = data.missileDriftDrag;
+                    mp.reorientDuration = data.missileHomingReorientTime;
+                    mp.boostImpulse     = data.missileBoostImpulse;
+                    mp.boostForce       = data.missileBoostForce;
+                    mp.boostDuration    = data.missileBoostDuration;
+                    mp.world            = world;
                 }
 
                 if (go.TryGetComponent(out DamageDealer dd))

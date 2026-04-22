@@ -52,16 +52,10 @@ public class GameManager : MonoBehaviour
         _mediumShip = Spawn(mediumShipPrefab);
         _largeShip  = Spawn(largeShipPrefab);
 
-        SetPlayerInputEnabled(_smallShip,  false);
-        SetPlayerInputEnabled(_mediumShip, false);
-        SetPlayerInputEnabled(_largeShip,  false);
-
-        var cO = cameraObject.GetComponent<TorusCamera>();
-        if (_smallShip != null)
-        {
-            cO.target = _smallShip.transform;
-            cO.ship   = _smallShip.GetComponent<ShipController>();
-        }
+        // Deactivate all ships; SwitchToShip will activate the chosen one
+        if (_smallShip  != null) _smallShip.SetActive(false);
+        if (_mediumShip != null) _mediumShip.SetActive(false);
+        if (_largeShip  != null) _largeShip.SetActive(false);
 
         GameObject startingShip = startShip switch
         {
@@ -95,12 +89,15 @@ public class GameManager : MonoBehaviour
 
     public void SwitchToShip(GameObject newShip)
     {
+        // Deactivate old ship entirely so its physics don't interfere
         if (_currentShipController != null)
-            SetPlayerInputEnabled(_currentShipController.gameObject, false);
-
-        // Unsubscribe old health events
-        if (_currentShipHealth != null)
+        {
             _currentShipHealth.OnDeath -= OnShipDied;
+            _currentShipController.gameObject.SetActive(false);
+        }
+
+        // Activate the new ship before getting components
+        newShip.SetActive(true);
 
         _currentShipController = newShip.GetComponent<ShipController>();
         _currentShipHealth     = newShip.GetComponent<ShipHealth>();
@@ -145,17 +142,19 @@ public class GameManager : MonoBehaviour
         if (ship == null) yield break;
         _respawning = true;
 
-        // Disable input during death
-        SetPlayerInputEnabled(ship, false);
+        // Deactivate ship during death sequence
+        ship.SetActive(false);
 
         yield return new WaitForSecondsRealtime(respawnDelay);
 
-        // Respawn — restore health, re-enable (boss state not reset)
+        // Move to safe spawn point before reactivating
+        ship.transform.position = new Vector3(100f, 60f, 0f);
+        ship.SetActive(true);
+
+        // Respawn — restore health, re-enable
         var sh = ship.GetComponent<ShipHealth>();
         sh?.Respawn();
 
-        // Move ship to a safe-ish spawn point (near world center)
-        ship.transform.position = new Vector3(100f, 60f, 0f);
 
         SetPlayerInputEnabled(ship, true);
         ShipHealth.Current = sh;
