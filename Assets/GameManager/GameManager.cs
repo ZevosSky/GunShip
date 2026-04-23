@@ -76,7 +76,8 @@ public class GameManager : MonoBehaviour
         var kb = Keyboard.current;
         if (kb == null) return;
 
-        if      (kb.digit1Key.wasPressedThisFrame && _smallShip  != null) SwitchToShip(_smallShip);
+        if      (kb.escapeKey.wasPressedThisFrame)                         Application.Quit();
+        else if (kb.digit1Key.wasPressedThisFrame && _smallShip  != null) SwitchToShip(_smallShip);
         else if (kb.digit2Key.wasPressedThisFrame && _mediumShip != null) SwitchToShip(_mediumShip);
         else if (kb.digit3Key.wasPressedThisFrame && _largeShip  != null) SwitchToShip(_largeShip);
     }

@@ -18,6 +18,8 @@ namespace GameManager
             [Range(0f, 100f)] public float      spawnWeight;
             [Range(1,  100)]  public int        spawnLimit;
             public GameObject                   prefab;
+            [Tooltip("Mark this entry as the boss. It spawns only once and never again after it is fully defeated.")]
+            public bool                         isBoss;
         }
 
         [Header("Spawn Config")]
@@ -25,6 +27,16 @@ namespace GameManager
         [SerializeField] private float                spawnInterval   = 3f;
         [SerializeField] private int                  spawnBatchSize  = 1;   // enemies per tick
         [SerializeField] private Vector2              spawnRadiusBand = new Vector2(15f, 25f);
+
+        [Header("Boss Encounter")]
+        /// <summary>True once any boss entry in the list has been fully cleared.</summary>
+        public bool BossCleared { get; private set; }
+        /// <summary>True while a boss entry is alive in the world.</summary>
+        public bool BossAlive   { get; private set; }
+
+        [Header("Spawning")]
+        [Tooltip("Pause / resume all spawning at runtime without disabling the component.")]
+        [SerializeField] public bool spawnPaused = false;
 
         [Header("World")]
         [SerializeField] private World.TorusWorld     world;
@@ -49,6 +61,28 @@ namespace GameManager
                 else
                     Debug.LogWarning("[EnemySpawner] No target and no ShipController found — enemies will not spawn.");
             }
+
+            if (HasBossEntry())
+                Enemies.BossController.OnBossFullyCleared += HandleBossCleared;
+        }
+
+        void OnDestroy()
+        {
+            if (HasBossEntry())
+                Enemies.BossController.OnBossFullyCleared -= HandleBossCleared;
+        }
+
+        bool HasBossEntry()
+        {
+            foreach (var info in enemySpawnInfos)
+                if (info.isBoss) return true;
+            return false;
+        }
+
+        void HandleBossCleared()
+        {
+            BossAlive   = false;
+            BossCleared = true;
         }
 
         void RecalcWeight()
@@ -67,6 +101,8 @@ namespace GameManager
                 if (sc != null) target = sc.transform;
                 return;
             }
+
+            if (spawnPaused) return;
 
             _timer += Time.deltaTime;
             if (_timer >= spawnInterval)
@@ -93,8 +129,12 @@ namespace GameManager
             }
 
             var info = enemySpawnInfos[idx];
-            if (info.prefab == null)             return;
+            if (info.prefab == null) return;
             if (_spawnCounts[idx] >= info.spawnLimit) return;
+
+            // Boss entry: never re-spawn once cleared, and don't double-spawn while alive.
+            if (info.isBoss && BossCleared) return;
+            if (info.isBoss && BossAlive)   return;
 
             // Random position in the radius band around target
             float   angle    = UnityEngine.Random.Range(0f, 360f) * Mathf.Deg2Rad;
@@ -119,6 +159,8 @@ namespace GameManager
             var hp = go.GetComponent<Health>();
             if (hp != null)
                 hp.OnDeath += () => _spawnCounts[capturedIdx]--;
+
+            if (info.isBoss) BossAlive = true;
 
             PopupTextSpawner.Instance?.Show("Enemy!", spawnPos + Vector2.up, Color.yellow);
         }

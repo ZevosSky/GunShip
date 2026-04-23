@@ -29,7 +29,6 @@ public class Projectile : MonoBehaviour
 
     private float _stateAccumulator;
     private float _totalSequenceTime;
-    private int _currentSequence; 
     #endregion
     
     #region Unity
@@ -37,7 +36,6 @@ public class Projectile : MonoBehaviour
     private void Start()
     {
         _totalSequenceTime = data.TotalLifeTime();
-        _currentSequence = 0; 
     }
     
     

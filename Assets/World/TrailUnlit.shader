@@ -2,7 +2,7 @@
 {
     Properties
     {
-        _MainTex ("Texture", 2D) = "white" {}
+        [NoScaleOffset] _MainTex ("Texture", 2D) = "white" {}
         _Color ("Tint", Color) = (1,1,1,1)
     }
 
@@ -50,14 +50,13 @@
 
             CBUFFER_START(UnityPerMaterial)
                 half4 _Color;
-                float4 _MainTex_ST;
             CBUFFER_END
 
             Varyings vert(Attributes input)
             {
                 Varyings o;
                 o.positionHCS = TransformObjectToHClip(input.positionOS.xyz);
-                o.uv = TRANSFORM_TEX(input.uv, _MainTex);
+                o.uv = input.uv;
                 o.color = input.color * _Color;
                 return o;
             }
@@ -101,14 +100,13 @@
 
             CBUFFER_START(UnityPerMaterial)
                 half4 _Color;
-                float4 _MainTex_ST;
             CBUFFER_END
 
             Varyings vert(Attributes input)
             {
                 Varyings o;
                 o.positionHCS = TransformObjectToHClip(input.positionOS.xyz);
-                o.uv = TRANSFORM_TEX(input.uv, _MainTex);
+                o.uv = input.uv;
                 o.color = input.color * _Color;
                 return o;
             }
@@ -152,14 +150,13 @@
 
             CBUFFER_START(UnityPerMaterial)
                 half4 _Color;
-                float4 _MainTex_ST;
             CBUFFER_END
 
             Varyings vert(Attributes input)
             {
                 Varyings o;
                 o.positionHCS = TransformObjectToHClip(input.positionOS.xyz);
-                o.uv = TRANSFORM_TEX(input.uv, _MainTex);
+                o.uv = input.uv;
                 o.color = input.color * _Color;
                 return o;
             }

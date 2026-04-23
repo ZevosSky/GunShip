@@ -18,13 +18,17 @@ namespace Projectiles
 
         void OnTriggerEnter2D(Collider2D col)
         {
+            if (HasMissileProjectile()) return;
             if (ShouldIgnoreTrigger(col)) return;
             HandleHit(col.gameObject, col.ClosestPoint(transform.position));
         }
 
         void OnCollisionEnter2D(Collision2D c)
-            => HandleHit(c.gameObject,
+        {
+            if (HasMissileProjectile()) return;
+            HandleHit(c.gameObject,
                 c.contactCount > 0 ? c.contacts[0].point : transform.position);
+        }
 
         void HandleHit(GameObject go, Vector2 pt)
         {
@@ -54,6 +58,8 @@ namespace Projectiles
             if (isPlayerProjectile || !col.isTrigger) return false;
             return col.GetComponentInParent<RocketShip.ShipHealth>() != null;
         }
+
+        bool HasMissileProjectile() => TryGetComponent<Weapons.MissileProjectile>(out _);
 
         void ApplyKnockback(Rigidbody2D rb, Vector2 targetPos, Vector2 hitPt)
         {

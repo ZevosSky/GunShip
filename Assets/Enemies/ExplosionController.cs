@@ -4,6 +4,7 @@
 using UnityEngine;
 using World;
 using RocketShip;
+using System.Collections.Generic;
 
 namespace Enemies
 {
@@ -27,22 +28,24 @@ namespace Enemies
             var ps = GetComponentInChildren<ParticleSystem>();
             if (ps != null) ps.Play();
 
-            // Area damage — non-allocating overlap
+            // Area damage
             float blastRadius = GetBlastRadius();
-            var buffer = new Collider2D[32];
-            int count  = Physics2D.OverlapCircleNonAlloc(transform.position, blastRadius, buffer);
-            for (int i = 0; i < count; i++)
+            var damagedEnemies = new HashSet<Health>();
+            var damagedShips   = new HashSet<ShipHealth>();
+            var hits = Physics2D.OverlapCircleAll(transform.position, blastRadius);
+            foreach (var c in hits)
             {
-                var c = buffer[i];
                 if (hurtEnemies)
                 {
                     var h = c.GetComponentInParent<Health>();
-                    if (h != null) h.TakeDamage(damage);
+                    if (h != null && damagedEnemies.Add(h)) h.TakeDamage(damage);
                 }
                 if (hurtPlayer)
                 {
+                    if (c.isTrigger && c.GetComponentInParent<ShipHealth>() != null) continue;
+
                     var sh = c.GetComponentInParent<ShipHealth>();
-                    if (sh != null) sh.TakeDamage(damage);
+                    if (sh != null && damagedShips.Add(sh)) sh.TakeDamage(damage);
                 }
             }
 

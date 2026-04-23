@@ -49,10 +49,6 @@ public class MissileProjectileEditor : Editor
             EditorGUILayout.EndHorizontal();
         }
 
-        if (mp.boostTurnSpeed > 60f)
-            EditorGUILayout.HelpBox(
-                $"Boost Turn Speed is {mp.boostTurnSpeed}°/s — lower values (< 30) give a 'committed' feel.",
-                MessageType.Warning);
 
         // Remind user that blast behaviour lives on the explosion prefab
         EditorGUILayout.Space(4);

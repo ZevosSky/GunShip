@@ -4,6 +4,7 @@
 
 using Enemies;
 using RocketShip;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Utils
@@ -47,12 +48,14 @@ namespace Utils
         void ApplyDamage()
         {
             Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, targetRadius);
+            var damagedEnemies = new HashSet<Health>();
+            var damagedShips = new HashSet<ShipHealth>();
             foreach (var col in hits)
             {
                 if (damageEnemies)
                 {
                     var enemyHealth = col.GetComponentInParent<Health>();
-                    if (enemyHealth != null)
+                    if (enemyHealth != null && damagedEnemies.Add(enemyHealth))
                     {
                         enemyHealth.TakeDamage(damageAmount);
                         continue;
@@ -61,8 +64,10 @@ namespace Utils
 
                 if (damagePlayer)
                 {
+                    if (col.isTrigger && col.GetComponentInParent<ShipHealth>() != null) continue;
+
                     var shipHealth = col.GetComponentInParent<ShipHealth>();
-                    if (shipHealth != null)
+                    if (shipHealth != null && damagedShips.Add(shipHealth))
                         shipHealth.TakeDamage(damageAmount);
                 }
             }

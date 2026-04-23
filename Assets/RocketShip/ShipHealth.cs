@@ -138,6 +138,7 @@ namespace RocketShip
         {
             // Enemies handle their own contact damage — ignore them here
             if (col.gameObject.GetComponentInParent<Enemies.EnemyBase>() != null) return;
+            if (col.gameObject.GetComponentInParent<Enemies.BossPart>() != null) return;
 
             float impact = col.relativeVelocity.magnitude;
             if (impact > minCollisionSpeed)
